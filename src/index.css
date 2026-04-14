@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400;1,6..72,700&family=Manrope:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* The Island Curator Typography */
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Newsreader", serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+
+  /* Core Palette - Phú Quý Inspired */
+  /* Primary: Deep emerald sea (#00556f) */
+  --color-primary: #00556f;
+  --color-primary-container: #0f6f8e;
+  --color-on-primary: #ffffff;
+  --color-primary-fixed-dim: #7ab8d8;
+
+  /* Secondary: Volcanic (#9b4500) */
+  --color-secondary: #9b4500;
+  --color-secondary-container: #d4a574;
+  --color-on-secondary: #ffffff;
+
+  /* Tertiary: Sun-drenched sands (#6e5d00) */
+  --color-tertiary: #6e5d00;
+  --color-tertiary-container: #c4b47c;
+  --color-on-tertiary: #ffffff;
+
+  /* Surface Hierarchy - Magazine Feel */
+  /* Level 0: Foundation - warm sand */
+  --color-background: #fbf9f1;
+  --color-surface: #fbf9f1;
+
+  /* Level 1: The Page */
+  --color-surface-container-low: #f5f4ec;
+  --color-surface-container: #eeecd9;
+
+  /* Level 2: The Inset */
+  --color-surface-container-high: #e5e3d3;
+
+  /* Level 3: The Focus - brilliant white */
+  --color-surface-container-lowest: #ffffff;
+
+  /* On Surface - ink-on-paper (no pure black) */
+  --color-on-surface: #1b1c17;
+  --color-on-surface-variant: #5a5a52;
+
+  --color-outline-variant: #c5c7be;
+
+  --color-error: #ba1a1a;
+
+  /* Sharp corners - 0.25rem = 4px */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-sans antialiased;
+    /* Soft easing for all transitions - gentle water flow */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headlines use Newsreader for editorial feel */
+  h1, h2, h3, .font-headline, .hero-title {
+    @apply font-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Display text uses Plus Jakarta Sans */
+  .font-display {
+    @apply font-display;
+  }
+}
+
+/* Glassmorphism - for floating navigation */
+.glass {
+  @apply bg-surface/80 backdrop-blur-2xl;
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Ghost Border - subtle border instead of full lines */
+.ghost-border {
+  @apply border border-outline-variant/15;
+}
+
+/* No-line rule - use background shifts instead of borders */
+.section-surface {
+  @apply bg-surface-container-low;
+}
+
+.section-surface-alt {
+  @apply bg-surface-container-high;
+}
+
+/* Featured photo corners - keep sharp */
+.featured-photo {
+  @apply rounded-sm;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Fix select dropdown */
+select {
+  position: relative;
+  z-index: 1;
+  appearance: auto;
+}
+select:focus {
+  z-index: 50;
+}
+select option {
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  padding: 8px;
+}
+
+/* Smooth easing animation curve - gentle water flow */
+.smooth {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Inset container for cards */
+.inset-card {
+  @apply bg-surface-container-lowest shadow-sm;
+}
+
+/* Featured image aspect ratio 4:5 */
+.aspect-portrait {
+  aspect-ratio: 4 / 5;
+}
+
+/* Featured image aspect ratio 2:3 */
+.aspect-magazine {
+  aspect-ratio: 2 / 3;
+}
