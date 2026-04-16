@@ -395,20 +395,13 @@ export default function Settlement() {
       )}
 
       {/* Actions Footer */}
-      <div className="flex flex-col sm:flex-row gap-3 mt-8">
+      <div className="flex gap-3 mt-8">
         <button
           onClick={handleShare}
           className="flex-1 flex items-center justify-center gap-2 bg-[#ffdc2e] text-on-surface-variant px-6 py-4 rounded-2xl font-black shadow-xl shadow-[#ffdc2e]/20 hover:brightness-110 active:scale-95 transition-all"
         >
           <Share2 size={20} />
           {copied ? 'Đã sao chép!' : 'Chia sẻ kết quả'}
-        </button>
-        <button
-          onClick={() => navigate('/expenses')}
-          className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary px-6 py-4 rounded-2xl font-bold hover:bg-primary/5 active:scale-95 transition-all"
-        >
-          <ArrowLeft size={20} />
-          Quay lại chi phí
         </button>
       </div>
     </div>
