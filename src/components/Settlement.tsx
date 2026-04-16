@@ -125,7 +125,9 @@ export default function Settlement() {
     [expenses, fundContributions, participants.length]
   );
 
-  const sharePerPerson = participants.length > 0 ? totalSpending / participants.length : 0;
+  const sharePerPerson = memberBalances.length > 0
+    ? memberBalances.reduce((sum, m) => sum + m.fairShare, 0) / memberBalances.length
+    : 0;
 
   const handleShare = async () => {
     const text = buildShareText(memberBalances, paymentPlan, totalFund, totalSpending, remaining, sharePerPerson);
@@ -245,7 +247,7 @@ export default function Settlement() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black font-headline">Chi tiết thành viên</h2>
               <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-                Bình quân: <span className="text-primary">{formatCurrency(sharePerPerson)}đ</span> / người
+                Tổng chi: <span className="text-primary">{formatCurrency(totalSpending)}đ</span>
               </p>
             </div>
             <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
@@ -256,7 +258,7 @@ export default function Settlement() {
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Bình quân</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Phải chi</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
                     </tr>
                   </thead>
@@ -296,36 +298,7 @@ export default function Settlement() {
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div>
-            <h2 className="text-lg font-black font-headline mb-4">Thống kê nhanh</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <StatCard
-                icon={<Receipt size={18} className="text-tertiary" />}
-                label="Khoản chi lớn nhất"
-                value={stats.biggestExpense.amount > 0 ? `${formatCurrency(stats.biggestExpense.amount)}đ` : '—'}
-                sub={stats.biggestExpense.amount > 0 ? `${stats.biggestExpense.reason} (${stats.biggestExpense.payerName})` : ''}
-              />
-              <StatCard
-                icon={<Trophy size={18} className="text-amber-500" />}
-                label="Đóng góp nhiều nhất"
-                value={stats.topContributor.amount > 0 ? `${formatCurrency(stats.topContributor.amount)}đ` : '—'}
-                sub={stats.topContributor.amount > 0 ? stats.topContributor.name : ''}
-              />
-              <StatCard
-                icon={<BarChart3 size={18} className="text-purple-500" />}
-                label="Danh mục top"
-                value={stats.biggestCategory.amount > 0 ? `${formatCurrency(stats.biggestCategory.amount)}đ` : '—'}
-                sub={stats.biggestCategory.amount > 0 ? stats.biggestCategory.category : ''}
-              />
-              <StatCard
-                icon={<User size={18} className="text-primary" />}
-                label="Trung bình / người"
-                value={stats.averagePerPerson > 0 ? `${formatCurrency(stats.averagePerPerson)}đ` : '—'}
-                sub=""
-              />
-            </div>
-          </div>
+          {/* Quick Stats removed by request */}
         </motion.div>
       )}
 
@@ -341,7 +314,8 @@ export default function Settlement() {
           ) : (
             <div className="space-y-3">
               {paymentPlan.map((tx, i) => {
-                const isDebt = tx.from.id !== treasurerId;
+                // from = người trả tiền (có balance < 0), to = người nhận tiền (có balance > 0)
+                // from always pays (Nộp thêm), to always receives (Nhận lại)
                 const payKey = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
                 const done = !!completedPayments[payKey];
                 return (
@@ -352,7 +326,7 @@ export default function Settlement() {
                     transition={{ delay: i * 0.05 }}
                     className={cn(
                       'bg-surface-container-lowest rounded-2xl p-4 sm:p-5 shadow-sm border border-outline-variant/10 flex items-center gap-3 sm:gap-5 transition-opacity',
-                      isDebt ? 'border-l-4 border-l-red-400' : 'border-l-4 border-l-emerald-400',
+                      'border-l-4 border-l-red-400',
                       done && 'opacity-50'
                     )}
                   >
@@ -369,20 +343,15 @@ export default function Settlement() {
                       {done && <CheckCircle2 size={16} />}
                     </button>
 
-                    {/* From */}
+                    {/* From - người trả tiền */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <AvatarBubble initials={tx.from.initials} colorClass={tx.from.colorClass} avatarUrl={tx.from.avatarUrl} size="sm" />
                       <div className="flex flex-col min-w-0">
                         <span className="font-bold text-sm truncate">{tx.from.name}</span>
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                            {isDebt ? 'Nộp thêm' : 'Refund'}
+                          <span className={tx.type === 'pay' ? 'text-[10px] font-black uppercase tracking-widest text-red-400' : 'text-[10px] font-black uppercase tracking-widest text-emerald-500'}>
+                            {tx.type === 'pay' ? 'Nộp thêm' : 'Hoàn trả'}
                           </span>
-                          {tx.from.id === treasurerId && (
-                            <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-0.5">
-                              <ShieldCheck size={9} /> Thủ quỹ
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -395,20 +364,10 @@ export default function Settlement() {
                       </span>
                     </div>
 
-                    {/* To */}
+                    {/* To - người nhận tiền */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                       <div className="flex flex-col min-w-0 items-end">
                         <span className="font-bold text-sm truncate">{tx.to.name}</span>
-                        <div className="flex items-center gap-1">
-                          {tx.to.id === treasurerId && (
-                            <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-0.5">
-                              <ShieldCheck size={9} /> Thủ quỹ
-                            </span>
-                          )}
-                          <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                            {isDebt ? 'Nhận' : 'Nhận lại'}
-                          </span>
-                        </div>
                       </div>
                       <AvatarBubble initials={tx.to.initials} colorClass={tx.to.colorClass} avatarUrl={tx.to.avatarUrl} size="sm" />
                     </div>

@@ -17,6 +17,7 @@ export interface PaymentTransaction {
   from: { id: string; name: string; initials: string; avatarUrl?: string; colorClass: string };
   to: { id: string; name: string; initials: string; avatarUrl?: string; colorClass: string };
   amount: number;
+  type: 'pay' | 'receive';
 }
 
 export interface CategorySpend {
@@ -48,6 +49,34 @@ export function computeMemberBalances(
   fundContributions: any[],
   treasurerId: string
 ): MemberBalance[] {
+  // Calculate each member's share based on their participation in each expense
+  const memberShares = new Map<string, number>();
+
+  // Initialize all members with 0 share
+  participants.forEach(p => memberShares.set(p.id, 0));
+
+  // For each expense, calculate each participant's fair share
+  expenses.forEach(e => {
+    const amount = Number(e.amount);
+    // Get participant_ids from expense_participants (junction table)
+    const expensePs = e.expense_participants || [];
+    // Only use actual participants if data exists, otherwise don't divide
+    let participantIds: string[] = [];
+    if (expensePs.length > 0) {
+      participantIds = expensePs.map((ep: any) => ep.participant_id);
+    } else {
+      // Old expense without participant data - all participants share equally
+      participantIds = participants.map(p => p.id);
+    }
+    const sharePerPerson = participantIds.length > 0 ? amount / participantIds.length : 0;
+
+    // Add this expense's share to each participant who was in this expense
+    participantIds.forEach((pid: string) => {
+      const currentShare = memberShares.get(pid) || 0;
+      memberShares.set(pid, currentShare + sharePerPerson);
+    });
+  });
+
   const totalSpending = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
   const fairShare = participants.length > 0 ? totalSpending / participants.length : 0;
 
@@ -61,8 +90,10 @@ export function computeMemberBalances(
       .reduce((acc: number, e: any) => acc + Number(e.amount), 0);
 
     const isTreasurer = p.id === treasurerId;
-    const effectivePaid = isTreasurer ? 0 : paidOnBehalf;
-    const balance = Math.round((fundContributed + effectivePaid) - fairShare);
+    const fairShareForMember = memberShares.get(p.id) || 0;
+    // Balance = tiền nóp - tiền đã sử dụng (fairShare)
+    // Không cộng paidOnBehalf vì người chi đã được tính vào expense rồi
+    const balance = Math.round(fundContributed - fairShareForMember);
 
     return {
       id: p.id,
@@ -72,7 +103,7 @@ export function computeMemberBalances(
       avatarUrl: p.avatar_url,
       fundContributed,
       paidOnBehalf,
-      fairShare: Math.round(fairShare),
+      fairShare: Math.round(fairShareForMember),
       balance,
       isTreasurer,
     };
@@ -80,28 +111,34 @@ export function computeMemberBalances(
 }
 
 export function computePaymentPlan(balances: MemberBalance[], treasurerId: string): PaymentTransaction[] {
-  const treasurer = balances.find(b => b.isTreasurer);
-  if (!treasurer) return [];
-
   const transactions: PaymentTransaction[] = [];
 
-  for (const m of balances) {
-    if (m.isTreasurer) continue;
-    if (Math.abs(m.balance) < 1) continue;
+  // New logic: balance = fund - fairShare
+  // Positive balance = gets refund from pool
+  // Negative balance = owes money to pool
 
-    if (m.balance < 0) {
-      // Nợ → nộp thêm cho thủ quỹ
+  const treasurer = balances.find(b => b.id === treasurerId) || balances[0];
+  if (!treasurer) return [];
+
+  for (const member of balances) {
+    if (member.id === treasurer.id) continue;
+    if (Math.abs(member.balance) < 1000) continue;
+
+    if (member.balance < 0) {
+      // Member owes money -> pays to treasurer/pool
       transactions.push({
-        from: { id: m.id, name: m.name, initials: m.initials, avatarUrl: m.avatarUrl, colorClass: m.colorClass },
+        from: { id: member.id, name: member.name, initials: member.initials, avatarUrl: member.avatarUrl, colorClass: member.colorClass },
         to: { id: treasurer.id, name: treasurer.name, initials: treasurer.initials, avatarUrl: treasurer.avatarUrl, colorClass: treasurer.colorClass },
-        amount: Math.abs(Math.round(m.balance)),
+        amount: Math.abs(member.balance),
+        type: 'pay', // from is paying
       });
     } else {
-      // Thừa → thủ quỹ refund
+      // Member gets refund -> treasurer/pool pays back
       transactions.push({
         from: { id: treasurer.id, name: treasurer.name, initials: treasurer.initials, avatarUrl: treasurer.avatarUrl, colorClass: treasurer.colorClass },
-        to: { id: m.id, name: m.name, initials: m.initials, avatarUrl: m.avatarUrl, colorClass: m.colorClass },
-        amount: Math.round(m.balance),
+        to: { id: member.id, name: member.name, initials: member.initials, avatarUrl: member.avatarUrl, colorClass: member.colorClass },
+        amount: member.balance,
+        type: 'receive', // from is receiving (treasurer refunding)
       });
     }
   }
