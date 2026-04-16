@@ -420,20 +420,13 @@ export default function SettlementModal({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col sm:flex-row gap-3 p-4 border-t border-outline-variant/10 shrink-0 bg-surface-container">
+        <div className="flex gap-3 p-4 border-t border-outline-variant/10 shrink-0 bg-surface-container">
           <button
             onClick={handleShare}
             className="flex-1 flex items-center justify-center gap-2 bg-[#ffdc2e] text-on-surface-variant px-4 py-3 rounded-xl font-black shadow-lg shadow-[#ffdc2e]/20 hover:brightness-110 active:scale-95 transition-all text-sm"
           >
             <Share2 size={18} />
             {copied ? 'Đã sao chép!' : 'Chia sẻ kết quả'}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary px-4 py-3 rounded-xl font-bold hover:bg-primary/5 active:scale-95 transition-all text-sm"
-          >
-            <ArrowLeft size={18} />
-            Quay lại chi phí
           </button>
         </div>
       </motion.div>
