@@ -92,7 +92,7 @@ export const updateParticipant = async (id: string, updates: any) => {
 export const getExpenses = async () => {
   const { data, error } = await supabase
     .from('expenses')
-    .select('*, participants!expenses_payer_id_fkey(name, initials, color_class, avatar_url), expense_participants(participant_id)')
+    .select('*, participants!expenses_payer_id_fkey(name, initials, color_class, avatar_url), expense_participants(participant_id, participants(name, initials, color_class, avatar_url))')
     .order('date', { ascending: false });
   if (error) throw error;
   return data;
