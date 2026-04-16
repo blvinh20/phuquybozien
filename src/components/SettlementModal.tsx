@@ -419,17 +419,7 @@ export default function SettlementModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 p-4 border-t border-outline-variant/10 shrink-0 bg-surface-container">
-          <button
-            onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#ffdc2e] text-on-surface-variant px-4 py-3 rounded-xl font-black shadow-lg shadow-[#ffdc2e]/20 hover:brightness-110 active:scale-95 transition-all text-sm"
-          >
-            <Share2 size={18} />
-            {copied ? 'Đã sao chép!' : 'Chia sẻ kết quả'}
-          </button>
-        </div>
-      </motion.div>
+              </motion.div>
     </div>
   );
 }
