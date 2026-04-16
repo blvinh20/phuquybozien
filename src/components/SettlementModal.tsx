@@ -274,7 +274,7 @@ export default function SettlementModal({
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-base font-black font-headline">Chi tiết thành viên</h2>
                   <p className="text-[9px] font-bold text-secondary uppercase tracking-widest">
-                    Bình quân: <span className="text-primary">{formatCurrency(sharePerPerson)}đ</span> / người
+                    Tổng chi: <span className="text-primary">{formatCurrency(totalSpending)}đ</span>
                   </p>
                 </div>
                 <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
@@ -285,6 +285,7 @@ export default function SettlementModal({
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Phải chi</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
                         </tr>
                       </thead>
@@ -306,6 +307,7 @@ export default function SettlementModal({
                             </td>
                             <td className="px-4 py-3 text-right text-xs font-medium">{formatCurrency(m.fundContributed)}đ</td>
                             <td className="px-4 py-3 text-right text-xs font-medium text-tertiary">{formatCurrency(m.paidOnBehalf)}đ</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant">{formatCurrency(m.fairShare)}đ</td>
                             <td className="px-4 py-3 text-right">
                               <span className={cn(
                                 'text-xs font-bold flex items-center justify-end gap-1',
