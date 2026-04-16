@@ -273,9 +273,6 @@ export default function SettlementModal({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-base font-black font-headline">Chi tiết thành viên</h2>
-                  <p className="text-[9px] font-bold text-secondary uppercase tracking-widest">
-                    Bình quân: <span className="text-primary">{formatCurrency(sharePerPerson)}đ</span> / người
-                  </p>
                 </div>
                 <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
                   <div className="overflow-x-auto">
@@ -285,6 +282,7 @@ export default function SettlementModal({
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Tổng chi</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
                         </tr>
                       </thead>
@@ -306,6 +304,7 @@ export default function SettlementModal({
                             </td>
                             <td className="px-4 py-3 text-right text-xs font-medium">{formatCurrency(m.fundContributed)}đ</td>
                             <td className="px-4 py-3 text-right text-xs font-medium text-tertiary">{formatCurrency(m.paidOnBehalf)}đ</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant">{formatCurrency(m.fairShare)}đ</td>
                             <td className="px-4 py-3 text-right">
                               <span className={cn(
                                 'text-xs font-bold flex items-center justify-end gap-1',
@@ -421,20 +420,13 @@ export default function SettlementModal({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col sm:flex-row gap-3 p-4 border-t border-outline-variant/10 shrink-0 bg-surface-container">
+        <div className="flex gap-3 p-4 border-t border-outline-variant/10 shrink-0 bg-surface-container">
           <button
             onClick={handleShare}
             className="flex-1 flex items-center justify-center gap-2 bg-[#ffdc2e] text-on-surface-variant px-4 py-3 rounded-xl font-black shadow-lg shadow-[#ffdc2e]/20 hover:brightness-110 active:scale-95 transition-all text-sm"
           >
             <Share2 size={18} />
             {copied ? 'Đã sao chép!' : 'Chia sẻ kết quả'}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary px-4 py-3 rounded-xl font-bold hover:bg-primary/5 active:scale-95 transition-all text-sm"
-          >
-            <ArrowLeft size={18} />
-            Quay lại chi phí
           </button>
         </div>
       </motion.div>

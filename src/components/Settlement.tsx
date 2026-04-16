@@ -246,9 +246,6 @@ export default function Settlement() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black font-headline">Chi tiết thành viên</h2>
-              <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-                Tổng chi: <span className="text-primary">{formatCurrency(totalSpending)}đ</span>
-              </p>
             </div>
             <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
               <div className="overflow-x-auto">
@@ -258,7 +255,7 @@ export default function Settlement() {
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Phải chi</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Tổng chi</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
                     </tr>
                   </thead>
@@ -398,20 +395,13 @@ export default function Settlement() {
       )}
 
       {/* Actions Footer */}
-      <div className="flex flex-col sm:flex-row gap-3 mt-8">
+      <div className="flex gap-3 mt-8">
         <button
           onClick={handleShare}
           className="flex-1 flex items-center justify-center gap-2 bg-[#ffdc2e] text-on-surface-variant px-6 py-4 rounded-2xl font-black shadow-xl shadow-[#ffdc2e]/20 hover:brightness-110 active:scale-95 transition-all"
         >
           <Share2 size={20} />
           {copied ? 'Đã sao chép!' : 'Chia sẻ kết quả'}
-        </button>
-        <button
-          onClick={() => navigate('/expenses')}
-          className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary px-6 py-4 rounded-2xl font-bold hover:bg-primary/5 active:scale-95 transition-all"
-        >
-          <ArrowLeft size={20} />
-          Quay lại chi phí
         </button>
       </div>
     </div>
