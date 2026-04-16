@@ -246,9 +246,6 @@ export default function Settlement() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black font-headline">Chi tiết thành viên</h2>
-              <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">
-                Tổng chi: <span className="text-primary">{formatCurrency(totalSpending)}đ</span>
-              </p>
             </div>
             <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
               <div className="overflow-x-auto">
@@ -258,7 +255,7 @@ export default function Settlement() {
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Phải chi</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Tổng chi</th>
                       <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
                     </tr>
                   </thead>
