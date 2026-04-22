@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PlusCircle, MapPin, Edit2, Trash2, X, Clock, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Activity } from '../types';
 import { cn } from '../lib/utils';
-import { getActivities, addActivity as addActivitySupabase, deleteActivity as deleteActivitySupabase, updateActivity as updateActivitySupabase } from '../lib/supabase';
+import { getActivities, addActivity as addActivitySupabase, deleteActivity as deleteActivitySupabase, updateActivity as updateActivitySupabase, uploadImage } from '../lib/supabase';
 import ConfirmModal from './ConfirmModal';
 import { useToast } from './Toast';
 
@@ -46,6 +46,9 @@ export default function Itinerary() {
     description: '',
     imageUrl: ''
   });
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [savingImage, setSavingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchActivities = async () => {
@@ -78,8 +81,25 @@ export default function Itinerary() {
   ];
   const currentActivities = activities.filter(a => a.day === selectedDay);
 
+  const handlePickImage = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedImageFile(file);
+  };
+
   const handleSaveActivity = async () => {
     try {
+      setSavingImage(true);
+
+      let imageUrl = formData.imageUrl;
+      if (selectedImageFile) {
+        imageUrl = await uploadImage(selectedImageFile);
+      }
+
       const activityPayload = {
         day: currentDay,
         time: formData.time,
@@ -88,7 +108,7 @@ export default function Itinerary() {
         location: formData.location,
         location_url: formData.location_url,
         description: formData.description,
-        image_url: formData.imageUrl
+        image_url: imageUrl
       };
 
       if (editingId) {
@@ -119,6 +139,8 @@ export default function Itinerary() {
     } catch (error) {
       console.error('Error saving activity:', error);
       showToast('Lưu hoạt động thất bại', 'error');
+    } finally {
+      setSavingImage(false);
     }
   };
 
@@ -144,6 +166,7 @@ export default function Itinerary() {
   const openAddModal = (day: number) => {
     setEditingId(null);
     setCurrentDay(day);
+    setSelectedImageFile(null);
     setFormData({
       time: '',
       period: 'Sáng',
@@ -159,6 +182,7 @@ export default function Itinerary() {
   const openEditModal = (activity: Activity) => {
     setEditingId(activity.id);
     setCurrentDay(activity.day);
+    setSelectedImageFile(null);
     setFormData({
       time: activity.time,
       period: activity.period,
@@ -174,6 +198,8 @@ export default function Itinerary() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setSelectedImageFile(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
     setFormData({
       time: '',
       period: 'Sáng',
@@ -403,10 +429,23 @@ export default function Itinerary() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-secondary uppercase ml-1">Link ảnh (URL)</label>
                   <div className="relative">
-                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
+                    <button
+                      type="button"
+                      onClick={handlePickImage}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors z-10"
+                    >
+                      <ImageIcon size={16} />
+                    </button>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
                     <input
                       type="text"
-                      placeholder="https://..."
+                      placeholder={selectedImageFile ? selectedImageFile.name : 'https://...'}
                       value={formData.imageUrl}
                       onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
                       className="w-full bg-surface-container-low border-none rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-primary"
@@ -423,9 +462,10 @@ export default function Itinerary() {
                 </button>
                 <button
                   onClick={handleSaveActivity}
-                  className="flex-1 bg-primary text-on-primary px-6 py-3 rounded-xl font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                  disabled={savingImage}
+                  className="flex-1 bg-primary text-on-primary px-6 py-3 rounded-xl font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-60"
                 >
-                  {editingId ? 'Cập nhật' : 'Lưu hoạt động'}
+                  {savingImage ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu hoạt động'}
                 </button>
               </div>
             </motion.div>

@@ -13,6 +13,17 @@ export interface MemberBalance {
   isTreasurer: boolean;
 }
 
+export interface MemberExpenseDetail {
+  expenseId: string;
+  reason: string;
+  category: string;
+  amount: number;
+  shareAmount: number;
+  participantCount: number;
+  payerName: string;
+  date: string;
+}
+
 export interface PaymentTransaction {
   from: { id: string; name: string; initials: string; avatarUrl?: string; colorClass: string };
   to: { id: string; name: string; initials: string; avatarUrl?: string; colorClass: string };
@@ -91,9 +102,7 @@ export function computeMemberBalances(
 
     const isTreasurer = p.id === treasurerId;
     const fairShareForMember = memberShares.get(p.id) || 0;
-    // Balance = tiền nóp - tiền đã sử dụng (fairShare)
-    // Không cộng paidOnBehalf vì người chi đã được tính vào expense rồi
-    const balance = Math.round(fundContributed - fairShareForMember);
+    const balance = Math.round(fundContributed + paidOnBehalf - fairShareForMember);
 
     return {
       id: p.id,
@@ -144,6 +153,35 @@ export function computePaymentPlan(balances: MemberBalance[], treasurerId: strin
   }
 
   return transactions;
+}
+
+export function computeMemberExpenseDetails(
+  memberId: string,
+  participants: Participant[],
+  expenses: any[]
+): MemberExpenseDetail[] {
+  return expenses
+    .flatMap(e => {
+      const amount = Number(e.amount);
+      const expensePs = e.expense_participants || [];
+      const participantIds = expensePs.length > 0
+        ? expensePs.map((ep: any) => ep.participant_id)
+        : participants.map(p => p.id);
+
+      if (!participantIds.includes(memberId) || participantIds.length === 0) return [];
+
+      return [{
+        expenseId: e.id,
+        reason: e.reason || 'Không có tên',
+        category: e.category || 'Khác',
+        amount,
+        shareAmount: amount / participantIds.length,
+        participantCount: participantIds.length,
+        payerName: e.participants?.name || 'N/A',
+        date: e.date || e.created_at || '',
+      }];
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function computeCategoryBreakdown(expenses: any[]): CategorySpend[] {

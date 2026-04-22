@@ -9,10 +9,10 @@ import {
 import { cn } from '../lib/utils';
 import { getSettlementPayments, setSettlementPayments } from '../lib/supabase';
 import {
-  computeMemberBalances, computePaymentPlan,
+  computeMemberBalances, computeMemberExpenseDetails, computePaymentPlan,
   computeCategoryBreakdown, computeStats,
 } from './settlement/computeSettlement';
-import type { MemberBalance, PaymentTransaction } from './settlement/computeSettlement';
+import type { MemberBalance, MemberExpenseDetail, PaymentTransaction } from './settlement/computeSettlement';
 import type { Participant } from '../types';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -61,6 +61,7 @@ export default function SettlementModal({
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [selectedMemberDetails, setSelectedMemberDetails] = useState<{ member: MemberBalance; details: MemberExpenseDetail[] } | null>(null);
 
   // Track payment completion state (persisted in database)
   const [completedPayments, setCompletedPayments] = useState<Record<string, boolean>>({});
@@ -106,6 +107,10 @@ export default function SettlementModal({
   );
   const paymentPlan = useMemo(() => computePaymentPlan(memberBalances, treasurerId), [memberBalances, treasurerId]);
   const categoryBreakdown = useMemo(() => computeCategoryBreakdown(expenses), [expenses]);
+  const memberExpenseDetails = useMemo(
+    () => Object.fromEntries(memberBalances.map(member => [member.id, computeMemberExpenseDetails(member.id, participants, expenses)])),
+    [memberBalances, participants, expenses]
+  );
   const stats = useMemo(
     () => computeStats(expenses, fundContributions, participants.length),
     [expenses, fundContributions, participants.length]
@@ -276,24 +281,31 @@ export default function SettlementModal({
                 </div>
                 <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[450px] text-left border-collapse">
+                    <table className="w-full min-w-[560px] table-fixed border-collapse">
+                      <colgroup>
+                        <col className="w-[34%]" />
+                        <col className="w-[16.5%]" />
+                        <col className="w-[16.5%]" />
+                        <col className="w-[16.5%]" />
+                        <col className="w-[16.5%]" />
+                      </colgroup>
                       <thead>
                         <tr className="bg-surface-container-high/50">
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Tổng chi</th>
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-left align-middle">Thành viên</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Đóng quỹ</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Chi hộ</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Tổng chi</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Kết quả</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/10">
                         {memberBalances.map(m => (
-                          <tr key={m.id} className="hover:bg-surface-container-low transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
+                          <tr key={m.id} className="hover:bg-surface-container-low transition-colors align-middle">
+                            <td className="px-4 py-3 align-middle">
+                              <div className="flex items-center gap-2 min-w-0">
                                 <AvatarBubble initials={m.initials} colorClass={m.colorClass} avatarUrl={m.avatarUrl} size="sm" />
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-bold">{m.name}</span>
+                                <div className="flex min-w-0 flex-col">
+                                  <span className="text-xs font-bold truncate">{m.name}</span>
                                   {m.isTreasurer && (
                                     <span className="text-[8px] font-black uppercase tracking-widest text-primary flex items-center gap-0.5">
                                       <ShieldCheck size={9} /> Thủ quỹ
@@ -302,12 +314,20 @@ export default function SettlementModal({
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-right text-xs font-medium">{formatCurrency(m.fundContributed)}đ</td>
-                            <td className="px-4 py-3 text-right text-xs font-medium text-tertiary">{formatCurrency(m.paidOnBehalf)}đ</td>
-                            <td className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant">{formatCurrency(m.fairShare)}đ</td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right text-xs font-medium whitespace-nowrap align-middle">{formatCurrency(m.fundContributed)}đ</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-tertiary whitespace-nowrap align-middle">{formatCurrency(m.paidOnBehalf)}đ</td>
+                            <td className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant whitespace-nowrap align-middle">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedMemberDetails({ member: m, details: memberExpenseDetails[m.id] || [] })}
+                                className="font-medium text-on-surface-variant hover:text-primary hover:underline"
+                              >
+                                {formatCurrency(m.fairShare)}đ
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right align-middle">
                               <span className={cn(
-                                'text-xs font-bold flex items-center justify-end gap-1',
+                                'text-xs font-bold flex items-center justify-end gap-1 whitespace-nowrap',
                                 m.balance >= 0 ? 'text-emerald-600' : 'text-red-600'
                               )}>
                                 {m.balance >= 0 ? '+' : ''}{formatCurrency(m.balance)}đ
@@ -338,7 +358,6 @@ export default function SettlementModal({
               ) : (
                 <div className="space-y-2.5">
                   {paymentPlan.map((tx, i) => {
-                    // from always pays (Nộp thêm), to always receives (Nhận lại)
                     const payKey = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
                     const done = !!completedPayments[payKey];
                     return (
@@ -353,7 +372,6 @@ export default function SettlementModal({
                           done && 'opacity-50'
                         )}
                       >
-                        {/* Checkbox */}
                         <button
                           onClick={() => togglePaymentDone(payKey)}
                           className={cn(
@@ -366,7 +384,6 @@ export default function SettlementModal({
                           {done && <CheckCircle2 size={14} />}
                         </button>
 
-                        {/* From - người trả tiền */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <AvatarBubble initials={tx.from.initials} colorClass={tx.from.colorClass} avatarUrl={tx.from.avatarUrl} size="sm" />
                           <div className="flex flex-col min-w-0">
@@ -377,7 +394,6 @@ export default function SettlementModal({
                           </div>
                         </div>
 
-                        {/* Arrow + Amount */}
                         <div className="flex flex-col items-center shrink-0">
                           <ArrowRight size={16} className="text-on-surface-variant mb-0.5" />
                           <span className="text-sm font-black text-primary whitespace-nowrap">
@@ -385,7 +401,6 @@ export default function SettlementModal({
                           </span>
                         </div>
 
-                        {/* To - người nhận tiền */}
                         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                           <div className="flex flex-col min-w-0 items-end">
                             <span className="text-xs font-bold truncate">{tx.to.name}</span>
@@ -396,7 +411,6 @@ export default function SettlementModal({
                     );
                   })}
 
-                  {/* Progress */}
                   {paymentPlan.length > 0 && (
                     <div className="bg-surface-container-lowest rounded-2xl p-3 shadow-sm border border-outline-variant/10">
                       <div className="flex items-center justify-between mb-1.5">
@@ -419,12 +433,91 @@ export default function SettlementModal({
           )}
         </div>
 
-              </motion.div>
+        <AnimatePresence>
+          {selectedMemberDetails && (
+            <MemberExpenseDetailsModal
+              member={selectedMemberDetails.member}
+              details={selectedMemberDetails.details}
+              onClose={() => setSelectedMemberDetails(null)}
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
 
 /* ── Sub-components ── */
+
+function MemberExpenseDetailsModal({
+  member,
+  details,
+  onClose,
+}: {
+  member: MemberBalance;
+  details: MemberExpenseDetail[];
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[2rem] bg-surface-container-lowest shadow-2xl border border-outline-variant/10"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface-container">
+          <div>
+            <h3 className="text-base font-black font-headline">Chi tiết Tổng chi</h3>
+            <p className="text-xs text-on-surface-variant mt-1">{member.name} · {formatCurrency(member.fairShare)}đ</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(85vh-76px)]">
+          {details.length === 0 ? (
+            <div className="rounded-2xl border border-outline-variant/10 bg-surface-container p-5 text-xs text-on-surface-variant">
+              Chưa có khoản chi nào cho thành viên này.
+            </div>
+          ) : (
+            details.map(detail => (
+              <div key={detail.expenseId} className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm text-on-surface">{detail.reason}</p>
+                    <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-on-surface-variant font-medium">
+                      <span>{detail.category}</span>
+                      <span>•</span>
+                      <span>Người chi: {detail.payerName}</span>
+                      <span>•</span>
+                      <span>{detail.participantCount} người</span>
+                    </div>
+                    {detail.date && (
+                      <p className="mt-1 text-[11px] text-on-surface-variant">{new Date(detail.date).toLocaleString('vi-VN')}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[11px] font-bold text-on-surface-variant">Bạn chịu</p>
+                    <p className="text-sm font-black text-primary">{formatCurrency(detail.shareAmount)}đ</p>
+                    <p className="text-[11px] text-on-surface-variant mt-1">Tổng bill {formatCurrency(detail.amount)}đ</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 function SummaryCard({ icon, label, value, borderColor, valueColor, prefix }: {
   icon: React.ReactNode;

@@ -11,10 +11,10 @@ import { cn } from '../lib/utils';
 import { useParticipants } from './ParticipantContext';
 import { getExpenses, getFundContributions, getSettlementPayments, setSettlementPayments } from '../lib/supabase';
 import {
-  computeMemberBalances, computePaymentPlan,
+  computeMemberBalances, computeMemberExpenseDetails, computePaymentPlan,
   computeCategoryBreakdown, computeStats,
 } from './settlement/computeSettlement';
-import type { MemberBalance, PaymentTransaction } from './settlement/computeSettlement';
+import type { MemberBalance, MemberExpenseDetail, PaymentTransaction } from './settlement/computeSettlement';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'Ẩm thực': <Utensils size={16} />,
@@ -57,6 +57,7 @@ export default function Settlement() {
   const [loading, setLoading] = useState(!stateData);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [selectedMemberDetails, setSelectedMemberDetails] = useState<{ member: MemberBalance; details: MemberExpenseDetail[] } | null>(null);
 
   // Track payment completion state (persisted in database)
   const [completedPayments, setCompletedPayments] = useState<Record<string, boolean>>({});
@@ -120,6 +121,10 @@ export default function Settlement() {
   );
   const paymentPlan = useMemo(() => computePaymentPlan(memberBalances, treasurerId), [memberBalances, treasurerId]);
   const categoryBreakdown = useMemo(() => computeCategoryBreakdown(expenses), [expenses]);
+  const memberExpenseDetails = useMemo(
+    () => Object.fromEntries(memberBalances.map(member => [member.id, computeMemberExpenseDetails(member.id, participants, expenses)])),
+    [memberBalances, participants, expenses]
+  );
   const stats = useMemo(
     () => computeStats(expenses, fundContributions, participants.length),
     [expenses, fundContributions, participants.length]
@@ -249,24 +254,31 @@ export default function Settlement() {
             </div>
             <div className="bg-surface-container-lowest rounded-[2rem] shadow-sm border border-outline-variant/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-left border-collapse">
+                <table className="w-full min-w-[640px] table-fixed border-collapse">
+                  <colgroup>
+                    <col className="w-[34%]" />
+                    <col className="w-[16.5%]" />
+                    <col className="w-[16.5%]" />
+                    <col className="w-[16.5%]" />
+                    <col className="w-[16.5%]" />
+                  </colgroup>
                   <thead>
                     <tr className="bg-surface-container-high/50">
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest">Thành viên</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Đóng quỹ</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Chi hộ</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Tổng chi</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right">Kết quả</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-left align-middle">Thành viên</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right align-middle">Đóng quỹ</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right align-middle">Chi hộ</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right align-middle">Tổng chi</th>
+                      <th className="px-5 py-3 text-[10px] font-black text-secondary uppercase tracking-widest text-right align-middle">Kết quả</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
                     {memberBalances.map(m => (
-                      <tr key={m.id} className="hover:bg-surface-container-low transition-colors">
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
+                      <tr key={m.id} className="hover:bg-surface-container-low transition-colors align-middle">
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex items-center gap-3 min-w-0">
                             <AvatarBubble initials={m.initials} colorClass={m.colorClass} avatarUrl={m.avatarUrl} size="sm" />
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{m.name}</span>
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate font-bold text-sm">{m.name}</span>
                               {m.isTreasurer && (
                                 <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-0.5">
                                   <ShieldCheck size={10} /> Thủ quỹ
@@ -275,12 +287,20 @@ export default function Settlement() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-right text-sm font-medium">{formatCurrency(m.fundContributed)}đ</td>
-                        <td className="px-5 py-4 text-right text-sm font-medium text-tertiary">{formatCurrency(m.paidOnBehalf)}đ</td>
-                        <td className="px-5 py-4 text-right text-sm font-medium text-on-surface-variant">{formatCurrency(m.fairShare)}đ</td>
-                        <td className="px-5 py-4 text-right">
+                        <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap align-middle">{formatCurrency(m.fundContributed)}đ</td>
+                        <td className="px-5 py-4 text-right text-sm font-medium text-tertiary whitespace-nowrap align-middle">{formatCurrency(m.paidOnBehalf)}đ</td>
+                        <td className="px-5 py-4 text-right text-sm font-medium text-on-surface-variant whitespace-nowrap align-middle">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMemberDetails({ member: m, details: memberExpenseDetails[m.id] || [] })}
+                            className="font-medium text-on-surface-variant hover:text-primary hover:underline"
+                          >
+                            {formatCurrency(m.fairShare)}đ
+                          </button>
+                        </td>
+                        <td className="px-5 py-4 text-right align-middle">
                           <span className={cn(
-                            'font-bold text-sm flex items-center justify-end gap-1',
+                            'font-bold text-sm flex items-center justify-end gap-1 whitespace-nowrap',
                             m.balance >= 0 ? 'text-emerald-600' : 'text-red-600'
                           )}>
                             {m.balance >= 0 ? '+' : ''}{formatCurrency(m.balance)}đ
@@ -311,8 +331,6 @@ export default function Settlement() {
           ) : (
             <div className="space-y-3">
               {paymentPlan.map((tx, i) => {
-                // from = người trả tiền (có balance < 0), to = người nhận tiền (có balance > 0)
-                // from always pays (Nộp thêm), to always receives (Nhận lại)
                 const payKey = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
                 const done = !!completedPayments[payKey];
                 return (
@@ -327,7 +345,6 @@ export default function Settlement() {
                       done && 'opacity-50'
                     )}
                   >
-                    {/* Checkbox */}
                     <button
                       onClick={() => togglePaymentDone(payKey)}
                       className={cn(
@@ -340,7 +357,6 @@ export default function Settlement() {
                       {done && <CheckCircle2 size={16} />}
                     </button>
 
-                    {/* From - người trả tiền */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <AvatarBubble initials={tx.from.initials} colorClass={tx.from.colorClass} avatarUrl={tx.from.avatarUrl} size="sm" />
                       <div className="flex flex-col min-w-0">
@@ -353,7 +369,6 @@ export default function Settlement() {
                       </div>
                     </div>
 
-                    {/* Arrow + Amount */}
                     <div className="flex flex-col items-center shrink-0">
                       <ArrowRight size={18} className="text-on-surface-variant mb-0.5" />
                       <span className="text-sm sm:text-base font-black text-primary whitespace-nowrap">
@@ -361,7 +376,6 @@ export default function Settlement() {
                       </span>
                     </div>
 
-                    {/* To - người nhận tiền */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                       <div className="flex flex-col min-w-0 items-end">
                         <span className="font-bold text-sm truncate">{tx.to.name}</span>
@@ -372,7 +386,6 @@ export default function Settlement() {
                 );
               })}
 
-              {/* Progress */}
               {paymentPlan.length > 0 && (
                 <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/10">
                   <div className="flex items-center justify-between mb-2">
@@ -394,7 +407,16 @@ export default function Settlement() {
         </motion.div>
       )}
 
-          </div>
+      <AnimatePresence>
+        {selectedMemberDetails && (
+          <MemberExpenseDetailsModal
+            member={selectedMemberDetails.member}
+            details={selectedMemberDetails.details}
+            onClose={() => setSelectedMemberDetails(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -436,6 +458,76 @@ function StatCard({ icon, label, value, sub }: {
   );
 }
 
+function MemberExpenseDetailsModal({
+  member,
+  details,
+  onClose,
+}: {
+  member: MemberBalance;
+  details: MemberExpenseDetail[];
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-[2rem] bg-surface-container-lowest shadow-2xl border border-outline-variant/10"
+      >
+        <div className="flex items-center justify-between p-5 border-b border-outline-variant/10 bg-surface-container">
+          <div>
+            <h3 className="text-lg font-black font-headline">Chi tiết Tổng chi</h3>
+            <p className="text-sm text-on-surface-variant mt-1">{member.name} · {formatCurrency(member.fairShare)}đ</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3 overflow-y-auto max-h-[calc(85vh-84px)]">
+          {details.length === 0 ? (
+            <div className="rounded-2xl border border-outline-variant/10 bg-surface-container p-6 text-sm text-on-surface-variant">
+              Chưa có khoản chi nào cho thành viên này.
+            </div>
+          ) : (
+            details.map(detail => (
+              <div key={detail.expenseId} className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm text-on-surface">{detail.reason}</p>
+                    <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-on-surface-variant font-medium">
+                      <span>{detail.category}</span>
+                      <span>•</span>
+                      <span>Người chi: {detail.payerName}</span>
+                      <span>•</span>
+                      <span>{detail.participantCount} người</span>
+                    </div>
+                    {detail.date && (
+                      <p className="mt-1 text-[11px] text-on-surface-variant">{new Date(detail.date).toLocaleString('vi-VN')}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-bold text-on-surface-variant">Bạn chịu</p>
+                    <p className="text-sm font-black text-primary">{formatCurrency(detail.shareAmount)}đ</p>
+                    <p className="text-[11px] text-on-surface-variant mt-1">Tổng bill {formatCurrency(detail.amount)}đ</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function buildShareText(
   members: MemberBalance[],
   payments: PaymentTransaction[],
@@ -457,7 +549,6 @@ function buildShareText(
     lines.push('Tất cả đã cân bằng!');
   } else {
     payments.forEach(tx => {
-      const isDebt = tx.from.id !== tx.to.id;
       lines.push(`${tx.from.name} → ${tx.to.name}: ${formatCurrency(tx.amount)}đ`);
     });
   }
