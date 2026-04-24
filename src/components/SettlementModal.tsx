@@ -120,6 +120,47 @@ export default function SettlementModal({
     ? memberBalances.reduce((sum, m) => sum + m.fairShare, 0) / memberBalances.length
     : 0;
 
+  const treasurerSummary = useMemo(() => {
+    const treasurer = memberBalances.find(member => member.id === treasurerId);
+    if (!treasurer) return null;
+
+    const cashInHandNow = totalFund - treasurer.paidOnBehalf;
+    const outgoingPayments = paymentPlan.filter(tx => tx.from.id === treasurerId);
+    const incomingPayments = paymentPlan.filter(tx => tx.to.id === treasurerId);
+    const outgoingSettlements = outgoingPayments.reduce((sum, tx) => sum + tx.amount, 0);
+    const incomingSettlements = incomingPayments.reduce((sum, tx) => sum + tx.amount, 0);
+    const completedOutgoing = outgoingPayments.reduce((sum, tx) => {
+      const key = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
+      return sum + (completedPayments[key] ? tx.amount : 0);
+    }, 0);
+    const completedIncoming = incomingPayments.reduce((sum, tx) => {
+      const key = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
+      return sum + (completedPayments[key] ? tx.amount : 0);
+    }, 0);
+    const settledDelta = paymentPlan.reduce((sum, tx) => {
+      const key = `${tx.from.id}-${tx.to.id}-${tx.amount}`;
+      if (!completedPayments[key]) return sum;
+      return sum + (tx.to.id === treasurerId ? tx.amount : -tx.amount);
+    }, 0);
+
+    return {
+      treasurer,
+      cashInHandNow,
+      outgoingSettlements,
+      incomingSettlements,
+      completedOutgoing,
+      completedIncoming,
+      remainingOutgoing: outgoingSettlements - completedOutgoing,
+      remainingIncoming: incomingSettlements - completedIncoming,
+      outgoingCount: outgoingPayments.length,
+      incomingCount: incomingPayments.length,
+      completedOutgoingCount: outgoingPayments.filter(tx => completedPayments[`${tx.from.id}-${tx.to.id}-${tx.amount}`]).length,
+      completedIncomingCount: incomingPayments.filter(tx => completedPayments[`${tx.from.id}-${tx.to.id}-${tx.amount}`]).length,
+      finalCashAfterSettlement: cashInHandNow + incomingSettlements - outgoingSettlements,
+      currentCashBasedOnCompletedPayments: cashInHandNow + settledDelta,
+    };
+  }, [completedPayments, memberBalances, paymentPlan, totalFund, treasurerId]);
+
   const handleShare = async () => {
     const text = buildShareText(memberBalances, paymentPlan, totalFund, totalSpending, remaining, sharePerPerson);
     if (navigator.share) {
@@ -295,7 +336,7 @@ export default function SettlementModal({
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Đóng quỹ</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Chi hộ</th>
                           <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Tổng chi</th>
-                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Kết quả</th>
+                          <th className="px-4 py-2.5 text-[9px] font-black text-secondary uppercase tracking-widest text-right align-middle">Chênh lệch ròng</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/10">
@@ -326,13 +367,20 @@ export default function SettlementModal({
                               </button>
                             </td>
                             <td className="px-4 py-3 text-right align-middle">
+                              {(() => {
+                                const displayBalance = m.isTreasurer && treasurerSummary
+                                  ? treasurerSummary.finalCashAfterSettlement
+                                  : m.balance;
+                                return (
                               <span className={cn(
                                 'text-xs font-bold flex items-center justify-end gap-1 whitespace-nowrap',
-                                m.balance >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                displayBalance >= 0 ? 'text-emerald-600' : 'text-red-600'
                               )}>
-                                {m.balance >= 0 ? '+' : ''}{formatCurrency(m.balance)}đ
-                                {m.balance >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                {displayBalance >= 0 ? '+' : ''}{formatCurrency(displayBalance)}đ
+                                {displayBalance >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                               </span>
+                                );
+                              })()}
                             </td>
                           </tr>
                         ))}
@@ -349,6 +397,20 @@ export default function SettlementModal({
           {activeTab === 'payments' && (
             <motion.div key="payments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <h2 className="text-base font-black font-headline mb-3">Kế hoạch thanh toán</h2>
+              {treasurerSummary && (
+                <TreasurerCashflowCard
+                  remainingOutgoing={treasurerSummary.remainingOutgoing}
+                  completedOutgoing={treasurerSummary.completedOutgoing}
+                  outgoingCount={treasurerSummary.outgoingCount}
+                  completedOutgoingCount={treasurerSummary.completedOutgoingCount}
+                  outgoingSettlements={treasurerSummary.outgoingSettlements}
+                  remainingIncoming={treasurerSummary.remainingIncoming}
+                  completedIncoming={treasurerSummary.completedIncoming}
+                  incomingCount={treasurerSummary.incomingCount}
+                  completedIncomingCount={treasurerSummary.completedIncomingCount}
+                  incomingSettlements={treasurerSummary.incomingSettlements}
+                />
+              )}
               {paymentPlan.length === 0 ? (
                 <div className="bg-surface-container-lowest rounded-[2rem] p-8 text-center shadow-sm border border-outline-variant/10">
                   <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-500" />
@@ -411,22 +473,6 @@ export default function SettlementModal({
                     );
                   })}
 
-                  {paymentPlan.length > 0 && (
-                    <div className="bg-surface-container-lowest rounded-2xl p-3 shadow-sm border border-outline-variant/10">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">Tiến độ thanh toán</span>
-                        <span className="text-xs font-black text-primary">
-                          {paymentPlan.filter(tx => completedPayments[`${tx.from.id}-${tx.to.id}-${tx.amount}`]).length} / {paymentPlan.length}
-                        </span>
-                      </div>
-                      <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                          style={{ width: `${(paymentPlan.filter(tx => completedPayments[`${tx.from.id}-${tx.to.id}-${tx.amount}`]).length / paymentPlan.length) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </motion.div>
@@ -536,6 +582,73 @@ function SummaryCard({ icon, label, value, borderColor, valueColor, prefix }: {
       <p className={cn('text-xl sm:text-2xl font-black font-headline whitespace-nowrap', valueColor || 'text-on-surface')}>
         {prefix || ''}{formatCurrency(value)} <span className="text-sm font-bold">đ</span>
       </p>
+    </div>
+  );
+}
+
+function TreasurerCashflowCard({
+  remainingOutgoing,
+  completedOutgoing,
+  outgoingCount,
+  completedOutgoingCount,
+  outgoingSettlements,
+  remainingIncoming,
+  completedIncoming,
+  incomingCount,
+  completedIncomingCount,
+  incomingSettlements,
+}: {
+  remainingOutgoing: number;
+  completedOutgoing: number;
+  outgoingCount: number;
+  completedOutgoingCount: number;
+  outgoingSettlements: number;
+  remainingIncoming: number;
+  completedIncoming: number;
+  incomingCount: number;
+  completedIncomingCount: number;
+  incomingSettlements: number;
+}) {
+  const outgoingProgress = outgoingSettlements > 0 ? (completedOutgoing / outgoingSettlements) * 100 : 0;
+  const incomingProgress = incomingSettlements > 0 ? (completedIncoming / incomingSettlements) * 100 : 0;
+
+  return (
+    <div className="rounded-[1.5rem] border border-outline-variant/10 bg-surface-container p-4 mb-3">
+      <p className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant mb-3">Dòng tiền thực tế của thủ quỹ</p>
+      <div className="space-y-3">
+        <div className="rounded-2xl bg-red-50 border border-red-100 p-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <p className="text-xs font-bold text-red-700">Còn phải hoàn cho mọi người</p>
+            </div>
+            <p className="text-xl font-black font-headline text-red-600">-{formatCurrency(remainingOutgoing)}đ</p>
+          </div>
+          <div className="flex items-center justify-between text-[11px] mb-2">
+            <span className="font-bold text-red-700">Đã hoàn {formatCurrency(completedOutgoing)}đ</span>
+            <span className="text-red-700/80">{completedOutgoingCount}/{outgoingCount} giao dịch</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-red-100 overflow-hidden">
+            <div className="h-full rounded-full bg-red-500 transition-all duration-300" style={{ width: `${outgoingProgress}%` }} />
+          </div>
+        </div>
+        {incomingSettlements > 0 && (
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="text-xs font-bold text-emerald-700">Còn phải thu thêm</p>
+              </div>
+              <p className="text-xl font-black font-headline text-emerald-600">+{formatCurrency(remainingIncoming)}đ</p>
+            </div>
+            <div className="flex items-center justify-between text-[11px] mb-2">
+              <span className="font-bold text-emerald-700">Đã thu {formatCurrency(completedIncoming)}đ</span>
+              <span className="text-emerald-700/80">{completedIncomingCount}/{incomingCount} giao dịch</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-emerald-100 overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${incomingProgress}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
